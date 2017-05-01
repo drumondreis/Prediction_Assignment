@@ -1,0 +1,129 @@
+---
+title: "Prediction Assignment"
+author: "Filipe Drumond Reis"
+date: "1 de maio de 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, comment=FALSE, message=FALSE)
+```
+
+
+#Introduction
+One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, the goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants.
+The data used in this project are from the Groupware @ LES research group related to the HAR - Human Activity Recognition project.
+Groupware @ LES http://groupware.les.inf.puc-rio.br/
+HAR http://groupware.les.inf.puc-rio.br/harlingweight_lifting_exercises
+We used the Weight Lifting Exercises Dataset which presents data about "six young health participants were asked to perform one set of 10 repetitions of the Unilateral Dumbbell Biceps Curl in five different fashions: exactly according to the specification (Class A), throwing the elbows to The front (Class B), lifting the dumbbell only halfway (Class C), lowering the dumbbell only halfway (Class D) and throwing the hips to the front (Class E).
+Class A corresponds to the specified execution of the exercise, while the other 4 classes correspond to common mistakes. Participants were supervised by an experienced weight lifter to make sure the execution complied with the manner they were supposed to simulate. "
+
+The goal of the project is to predict the manner in which they did the exercise.
+
+#1 - Data
+The following Libraries were used:
+```{r}
+library(caret)
+library(randomForest)
+library(corrplot)
+library(rpart)
+library(rpart.plot)
+library(rattle)
+```
+The seed set was 12345
+```{r}
+set.seed(12345)
+```
+
+
+1.1 Getting the data
+We used the Weight Lifting Exercises Dataset.
+The training data: https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+The test data: https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+```{r}
+training <- read.csv(url("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"), na.strings=c("NA","#DIV/0!",""))
+test <- read.csv(url("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"), na.strings=c("NA","#DIV/0!",""))
+
+```
+Partioning Training data set into two data sets, 75% for training1, 25% for testing1
+```{r}
+inTrain <- createDataPartition(y=training$classe, p=0.75, list=FALSE)
+training1 <- training[inTrain, ]
+testing1 <- training[-inTrain, ]
+dim(training1)
+dim(testing1)
+```
+
+1.2 Cleaning the data
+All variables with near zero variance predictors were identified and removed.
+
+```{r}
+NZV <- nearZeroVar(training1)
+training1 <- training1[, -NZV]
+testing1  <- testing1[, -NZV]
+dim(training1)
+dim(testing1)
+```
+The first to the fifth column were removed, since they were identification variables. So as not to interfere with the forecasting models.
+```{r}
+training1 <- training1[,-(1:5)]
+testing1  <- testing1 [,-(1:5)]
+```
+
+The variables that had 50% of the cases were removed.
+```{r}
+halfNAs<- sapply(training1, function(x) mean(is.na(x))) > 0.5
+training1 <- training1[, halfNAs==FALSE]
+testing1 <- testing1[, halfNAs==FALSE]
+dim(training1)
+dim(testing1)
+```
+
+
+#2 - Prediction Models
+Two methods of prediction were trained and tested and the method with the best accuracy was used to respond to the quiz.
+The two methods were: Random Forests and Decision Tree
+
+#3 - Training and test Models
+3.1 Prediciton Model Random Forests
+
+To train:
+```{r}
+fitRF <- randomForest(classe ~. , data=training1)
+```
+
+To test using confusion Matrix:
+```{r}
+predictRF <- predict(fitRF, testing1, type = "class")
+confusionMatrix(predictRF, testing1$classe)
+```
+
+The accuracy of the Random Forests Model was 0.9982
+
+3.2 Prediciton Model Decision Tree
+
+To train:
+```{r}
+fitDT <- rpart(classe ~ ., data=training1, method="class")
+fancyRpartPlot(fitDT)
+```
+
+To test using confusion Matrix:
+```{r}
+predictDT <- predict(fitDT, testing1, type = "class")
+confusionMatrix(predictDT,testing1$classe)
+```
+The accuracy of the Decision Tree Model was 0.735
+
+#4 - Results
+The accuracy of the 2 models are:
+Random Forests: 0.9982
+Decision Tree: 0.735
+
+In that case, the Random Forest model was applied in testing data set.
+```{r}
+predicttest <- predict(fitRF, newdata=test)
+predicttest
+```
+
